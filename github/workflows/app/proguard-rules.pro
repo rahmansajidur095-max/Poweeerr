@@ -1,0 +1,8 @@
+-keep class com.telec2.** { *; }
+-dontwarn com.telec2.**
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+-optimizationpasses 5
+-allowaccessmodification
+-repackageclasses ''
+-flattenpackagehierarchy
